@@ -6,7 +6,7 @@
 <!ENTITY md5       "9a97a2257926ea7cd2b1619903f21fa8">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
-<!ENTITY github    "hugenbd/ca.mover.tuning">
+<!ENTITY github    "r3yn4ld/ca.mover.tuning">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/&github;/master/plugins/&name;.plg">
 ]>
 
