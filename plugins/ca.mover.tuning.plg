@@ -1,7 +1,7 @@
 <?xml version='1.0' standalone='yes'?>
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
-<!ENTITY author    "Reynald">
+<!ENTITY author    "hugenbdd">
 <!ENTITY version   "2023.12.19">
 <!ENTITY md5       "9a97a2257926ea7cd2b1619903f21fa8">
 <!ENTITY launch    "Settings/Scheduler">
@@ -13,11 +13,6 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="music" min="6.9.0-rc2">
 
 <CHANGES>
-###2024-06-30
-- [Automatic age threshold](https://github.com/R3yn4ld/ca.mover.tuning/tree/automatic-age-threshold) from [R3yn4ld](https://github.com/R3yn4ld)
-- [Minor spelling corrections & README](https://github.com/dphelan/ca.mover.tuning/tree/spelling-corrections) from [Dphelan](https://github.com/dphelan)
-- [Merge share skipfiletypes](https://github.com/davendesai/unraid-mover-tuning/tree/merge-share-skipfiletypes) from [Davendsai](https://github.com/davendesai) (add/merge per share skipfilestype to global skips)
-- [Update Mover.tuning.page](https://github.com/Squidly271/ca.mover.tuning/tree/patch-2) from [Squid](https://github.com/Squidly271)
 ###2023.12.19
 - Change "while read" lines in age_mover to "while IFS= read -r" to fix trailing white spaces (Swarles)
 - Fix where sometimes mover would not run to mover.old scrip (Swarles)
