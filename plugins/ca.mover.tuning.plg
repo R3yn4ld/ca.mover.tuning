@@ -118,6 +118,7 @@ The 'post-install' script
 -->
 <FILE Run="/bin/bash">
 <INLINE>
+set -x
 echo "Backup current mover binary, command may fail depending on version of unRAID"
 if [[ -e /usr/local/sbin/mover -a ! -f /usr/local/sbin/mover.old ]]; then
   echo "/usr/local/sbin/mover"
