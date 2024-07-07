@@ -7,7 +7,7 @@
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "r3yn4ld/ca.mover.tuning">
-<!ENTITY pluginURL "https://github.com/R3yn4ld/ca.mover.tuning/raw/2024-06-30/archive/ca.mover.tuning-2024.06.30-x86_64-1.txz">
+<!ENTITY pluginURL "https://raw.githubusercontent.com/R3yn4ld/ca.mover.tuning/2024-06-30/archive/ca.mover.tuning-2024.06.30-x86_64-1.txz">
 ]>
 
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="music" min="6.9.0-rc2">
