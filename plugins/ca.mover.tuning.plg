@@ -109,7 +109,7 @@ rm -f $(ls /boot/config/plugins/&name;/&name;*.txz 2>/dev/null &#124; grep -v '&
 The 'source' file.
 -->
 <FILE Name="/boot/config/plugins/&name;/&name;-&version;-x86_64-1.txz" Run="upgradepkg --install-new">
-<URL>https://raw.github.com/&github;/master/archive/&name;-&version;-x86_64-1.txz</URL>
+<URL>https://github.com/R3yn4ld/ca.mover.tuning/raw/2024-06-30/archive/ca.mover.tuning-2024.06.30-x86_64-1.txz</URL>
 <MD5>&md5;</MD5>
 </FILE>
 
