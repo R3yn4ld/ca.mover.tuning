@@ -131,7 +131,7 @@ rm /usr/local/sbin/move
 if [[ -e /usr/local/bin/move ]]; then
   echo "Creating Soft link for 6.12 RC8 or newer since /usr/local/sbin/move is now located in /usr/local/bin/move"
   ln -s /usr/local/bin/move /usr/local/sbin/move
-elif 
+elif [[ -e /usr/libexec/unraid/move ]]; then
   echo "Creating Soft link for 7.0 or newer since /usr/local/sbin/move is now located in /usr/local/bin/move"
   ln -s /usr/libexec/unraid/move /usr/local/sbin/move
 fi
