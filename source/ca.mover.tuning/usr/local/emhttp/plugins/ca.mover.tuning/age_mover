@@ -353,7 +353,7 @@ customArrayFilelist() {
 totalsizeFilelist() {
     #Loop through the custom mover filelist and add up all the sizes for each entry.
     TOTALCACHESIZE=0  # Initialize threshold met line
-    PREVIOUSLINEDATE=""  # Initialize previous line date
+    PREVIOUSLINEDATE=0  # Initialize previous line date
     #echo "Grabbing total filesize"
 
     #start looping
