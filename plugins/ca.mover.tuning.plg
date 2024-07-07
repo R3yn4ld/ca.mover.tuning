@@ -15,7 +15,7 @@
 <CHANGES>
 ###2024-06-30
 - Automatic age threshold from R3yn4ld
-- Minor spelling corrections & README from Dphelan
+- Minor spelling corrections and README from Dphelan
 - Merge share skipfiletypes from Davendsai (add/merge per share skipfilestype to global skips)
 - Update Mover.tuning.page from Squid
 
