@@ -726,12 +726,12 @@ decideMoveActions () {
             }
 
             #Check where file is stored. Priority to primary in case of dupe
-            if (storage_pool == $1) {
+            if (storage_pool == $1 || system("[ -e \"/mnt/$1/filepath\" ]") == 0) {
                 # Make decision to move or keep:
                 action = ($4 != "only" && (($4 == "prefer" || $4 == "yes") && (pool_sums[$1] >= $6 && AGE == -1) || AGE >= 0) || $4 == "no" ) ? "move from primary" : "keep on primary"
 
                 if (action == "keep on primary")  {
-                    source = storage_path
+                    source = "/mnt/" $1"
                     if (SYNCHRONIZECACHE == "yes" && $4 != "only" && ( $5 >= LASTCACHESYNC || RESYNCHRONIZECACHE == "yes" ) )  {
                         action = "sync from primary"
                         destination = "/mnt/" $2
@@ -761,7 +761,7 @@ decideMoveActions () {
 
                     # Update pool statistics and set destination if moving the file
                     if (action == "move from secondary") {
-                        source = storage_path
+                        source = "/mnt/" $1"
                         destination = "/mnt/" $1
                         if (SYNCHRONIZECACHE == "yes" && $4 != "only")  {
                             action = "sync from secondary"
@@ -853,7 +853,7 @@ decideMoveActions () {
     TOTALPRIMARYFILES=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 2)
     TOTALPRIMARYSIZE=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 3)
     TOTALSECONDARYFILES=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 4)
-    TOTALSECONDARYSIZE=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 5)
+    TOTALSECONDARYSIZE=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 5)                                                                                                                                                                                                                      qwwwwwwwwwwwwwwwwwwwwwww                                                    
     TOTALUNATTENDEDFILES=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 6)
     TOTALUNATTENDEDSIZE=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 7)
 
