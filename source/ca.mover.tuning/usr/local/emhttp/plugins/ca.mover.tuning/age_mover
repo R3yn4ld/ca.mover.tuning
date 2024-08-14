@@ -658,6 +658,7 @@ createFilteredFilelist (){
                 cmd | getline result;
                 close(cmd);
                 sub(/\\n\$/, \"\", result);
+                \$1 = result;
             "
         else
             FINDSTR+="{"
