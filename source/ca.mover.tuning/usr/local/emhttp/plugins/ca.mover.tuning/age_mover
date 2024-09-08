@@ -1068,7 +1068,7 @@ processTheMoves () {
 
             # Check if list is complete
             NBFILES=$(($(echo "$SYNCED_FILES" | grep -o '" "' | wc -l) + 1))
-            if [ $NBFILES != $NBLINKS ]; then
+            if [ $NBFILES != $NBLINKS ] && [ "$ACTION" !~ "sync" ]; then
                 mvlogger "Expected $NBLINKS files, got $NBFILES. Not moving $SYNCED_FILES to prevent breaking hardlinks"
                 continue
             fi
@@ -1076,14 +1076,14 @@ processTheMoves () {
             # Proceed with rsync
             if [[ "$ACTION" =~ "move" ]]; then
                 # Some verbosity
-                GUI_ACTION="Moving to $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
-                mvlogger "Moving $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
+                GUI_ACTION="Moving to $DESTINATION/ $( [ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
+                mvlogger "Moving $SYNCED_FILES to  $DESTINATION/ $( [ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
                 # Finalize RSYNC_CMD
                 RSYNC_CMD+=" --remove-source-files"   
             elif [[ "$ACTION" =~ "sync" ]] ; then 
                 # Some verbosity
-                GUI_ACTION="Synchronizing to $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
-                mvlogger "Synchronizing  $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
+                GUI_ACTION="Synchronizing $SYNCED_FILES to $DESTINATION/ $([ $NBLINKS -gt 1 ] && [ $NBFILES = $NBLINKS ] && echo '(preserving hardlinks)' || echo '. Info: hardlink broken')"
+                mvlogger "Synchronizing  $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && [ $NBFILES = $NBLINKS ] && echo '(preserving hardlinks)' || echo '. Info: hardlink broken' )"
             fi
 
             moverStatusWrite
@@ -1250,6 +1250,8 @@ start() {
 
     mvlogger "$(titleLine 'WE ARE DONE !' '*')"
     [ $LOGLEVEL = 0 ] && echo "Mover tuning plugin done!"
+
+    exit 0
 }
 
 killtree() {
