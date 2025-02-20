@@ -1,12 +1,12 @@
 <?xml version='1.0' standalone='yes'?>
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
-<!ENTITY author    "Reynald">
-<!ENTITY version   "2024.09.05.0222">
-<!ENTITY md5       "a367c78a27e2254742437ee2b14df87c">
+<!ENTITY author    "masterwishx">
+<!ENTITY version   "2025.02.18.1752">
+<!ENTITY md5       "908f9efa690790a104a2bf95acff5ac1">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
-<!ENTITY github    "R3yn4ld/ca.mover.tuning">
+<!ENTITY github    "masterwishx/ca.mover.tuning">
 <!ENTITY branch    "master">
 <!ENTITY upgrade   "minor">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/&github;/master/plugins/&name;.plg">
@@ -15,6 +15,17 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
+###2025.02.18.1752
+- [Check parent empty ZFS dataset for children empty datasets before destroy it.](https://github.com/masterwishx/ca.mover.tuning/pull/1) ([masterwishx](https://github.com/masterwishx))
+- Shell Check Fixes + speedup `if` checks.
+- Better help text cosmetic with Bold and italic + added note for Test Mode and some changes in config page.
+- Skip cache pool size calculation when only one share found in cache pool.
+- Changed minimum threshold of used Primary (cache) space from 5% to 0%.
+
+###2025.02.12.1707
+- Fix issue for shares with spaces.Thanks DToX_ from forums. [masterwishx]
+- Add option to clean ZFS datasets. [masterwishx]
+
 ###2024.09.05.0222
 - Fix find not finding hidden files. Thanks solidno8 from forums. [R3yn4ld]
 2024.09.05.0115
