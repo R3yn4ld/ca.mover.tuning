@@ -1,0 +1,13 @@
+Menu="Buttons"
+Link="nav-user"
+---
+<?php
+// Buttons pages run before the tab titles and _( )_ markers are rendered; nothing else in a plugin does.
+// Loads languages/<locale>.txt from this plugin for the two pages that carry Mover Tuning tabs.
+if (in_array($myPage['name'] ?? '', ['Scheduler', 'Share'], true) === true && preg_match('/^[a-z]{2}_[A-Z]{2}$/', $locale ?? '') === 1) {
+  $moverTuningLanguageFile = "$docroot/plugins/ca.mover.tuning/languages/$locale.txt";
+  if (file_exists($moverTuningLanguageFile) === true) {
+    $language = array_merge($language, parse_lang_file($moverTuningLanguageFile));
+  }
+}
+?>

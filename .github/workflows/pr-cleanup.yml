@@ -1,0 +1,39 @@
+name: PR cleanup
+
+# Removes the pr-<number>-<version> test builds when a pull request closes. Checks out nothing.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Remove the pull request releases, their tags and the note
+      env:
+        PR: ${{ github.event.pull_request.number }}
+      run: |
+        set -euo pipefail
+        # listed first: a failing call inside a process substitution would read as "nothing to remove"
+        tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.prerelease and (.tag_name | startswith(\"pr-$PR-\"))) | .tag_name")
+        [ -n "$tags" ] || echo "No test build for #$PR."
+        while read -r tag; do
+          [ -n "$tag" ] || continue
+          # a publish run that saw the close may have removed it already: "release not found" is that outcome
+          out=$(gh release delete --repo "$GITHUB_REPOSITORY" "$tag" --yes --cleanup-tag 2>&1) \
+            || [[ "$out" == *"release not found"* ]] || { echo "$out" >&2; exit 1; }
+          echo "removed $tag"
+        done <<< "$tags"
+        # also when nothing was left: an earlier attempt may have removed the builds and failed before this
+        marker="<!-- pr-build -->"
+        id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments?per_page=100" --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -n 1)
+        if [ -n "$id" ] && [ "$id" != "null" ]; then
+          gh api "repos/$GITHUB_REPOSITORY/issues/comments/$id" -X PATCH -f body="$marker"$'\n'"The test build for this pull request has been removed." >/dev/null
+        fi

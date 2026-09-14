@@ -1,0 +1,255 @@
+#!/bin/bash
+
+BOOT_LOGS="/boot/logs/"
+DEBUGROOT="/tmp/ca.mover.tuning-debug"
+PKGROOT="/usr/local/emhttp/plugins/ca.mover.tuning/debug"
+CONFIG="/boot/config/plugins/ca.mover.tuning/ca.mover.tuning.cfg"
+DEFAULT_CONFIG="/usr/local/emhttp/plugins/ca.mover.tuning/default.cfg"
+CRON="/boot/config/plugins/ca.mover.tuning/mover.cron"
+UNRAID_CRON="/boot/config/plugins/dynamix/mover.cron*"
+OVERRIDE_CFGFOLDER="/boot/config/plugins/ca.mover.tuning/shareOverrideConfig"
+PIDFILE="/var/run/mover.pid"
+SOFTSTOPFILE="/var/run/moversoft.stop"
+
+# Get parent Logs Folder from config, if blank set to default /tmp
+LOGFOLDER=$(grep "loggingFolder=" "$CONFIG" | cut -d '"' -f 2)
+LOGFOLDER="${LOGFOLDER:-/tmp}/ca.mover.tuning"
+
+# Get the filelistv from config
+SKIPFILESLIST=$(grep "filelistv=" "$CONFIG" | cut -d '"' -f 2)
+
+# Budget, not a file count: a file count gives busy schedules the least history.
+MAXLOGBYTES=$((30 * 1024 * 1024))
+
+DEBUGTIME="$(date '+%Y%m%d-%H%M' 2>/dev/null)"
+DEBUGNAME="ca.mover.tuning-debug-${DEBUGTIME}.zip"
+
+# Mangles file and folder names below the share. Share and pool names are kept:
+# every mover decision is per-share, and they are Unraid defaults, not user data.
+ANONAWK="$(mktemp)"
+trap 'rm -f "$ANONAWK"' EXIT
+cat >"$ANONAWK" <<'ANONEOF'
+function dashes(k,   i, r) { r = ""; for (i = 0; i < k; i++) r = r "-"; return r }
+
+function mangle(s) { return dashes(length(s)) }
+
+# extension kept - the filetype filters are diagnosed from it
+function mangle_leaf(s,   i) {
+    if (s == "." || s == ".." || s == "") return s
+    i = match(s, /\.[A-Za-z0-9]{1,8}$/)
+    if (i > 0) return mangle(substr(s, 1, i - 1)) substr(s, i)
+    return mangle(s)
+}
+
+# the producer escapes \ and " inside a path (qp in age_mover/share_mover); undo that
+# before measuring, so a name is dashed to its real length
+function unescape(s,   out, i, c) {
+    out = ""
+    for (i = 1; i <= length(s); i++) {
+        c = substr(s, i, 1)
+        if (c == "\\" && i < length(s)) { i++; c = substr(s, i, 1) }
+        out = out c
+    }
+    return out
+}
+
+function mangle_path(p,   parts, n, i, out, abs, keep) {
+    # Absolute paths are /mnt/<pool>/<share>/..., so the readable prefix is parts 1-4.
+    # Mover_action rows are share-relative, so there the share is part 1 and nothing else
+    # is structural - a deeper folder named after a share is somebody's data, not a share.
+    abs = (substr(p, 1, 1) == "/")
+    n = split(p, parts, "/")
+    out = ""
+    for (i = 1; i <= n; i++) {
+        if (abs) keep = (i <= 3 || (i == 4 && parts[i] in share))
+        else keep = (i == 1 && (parts[i] in share || parts[i] in pool))
+        out = out (i > 1 ? "/" : "") (keep ? parts[i] : mangle_leaf(parts[i]))
+    }
+    return out
+}
+
+BEGIN {
+    FS = OFS = "|"
+    split(POOLS, p, " ");  for (i in p) pool[p[i]] = 1
+    split(SHARES, s, " "); for (i in s) share[s[i]] = 1
+}
+
+# A list row carries the path as its last field, so take it whole - a name with
+# spaces in it has no delimiter the free-text branch below could rely on.
+LIST && NF > 1 { $NF = mangle_path($NF); print; next }
+
+{
+    line = $0
+    out = ""
+    # spaces are not a terminator: file names contain them. copy st/len first,
+    # mangle_leaf runs its own match() and would clobber RSTART/RLENGTH.
+    # So a log message must quote a path it puts mid-sentence - only the caller knows
+    # where the path ends, and unquoted the prose after it is mangled away too.
+    # Only an UNESCAPED quote terminates: , ; | ' and " are all legal in a file name and
+    # any of them ending the match leaks the rest of it. ' and , are common, " is an edge case.
+    while (match(line, /\/mnt\/(\\.|[^"\\])*/)) {
+        st = RSTART; len = RLENGTH
+        tok = substr(line, st, len); tail = ""
+        # trailing blanks belong to the line, not the path
+        if (match(tok, /[ \t]+$/)) { tail = substr(tok, RSTART); tok = substr(tok, 1, RSTART - 1) }
+        out = out substr(line, 1, st - 1) mangle_path(unescape(tok)) tail
+        line = substr(line, st + len)
+    }
+    print out line
+}
+ANONEOF
+
+POOLNAMES="user user0 $(for f in /boot/config/pools/*.cfg; do [ -f "$f" ] && basename "$f" .cfg; done | tr '\n' ' ')"
+SHARENAMES="$(for f in /boot/config/shares/*.cfg; do [ -f "$f" ] && basename "$f" .cfg; done | tr '\n' ' ')"
+
+# Fails closed: the caller must not package a file this could not rewrite.
+anonymize_tree() {
+    local rc=0 f list
+    while IFS= read -r -d '' f; do
+        list=0; [ "${f%.list.txt}" != "$f" ] && list=1
+        if gawk -v POOLS="$POOLNAMES" -v SHARES="$SHARENAMES" -v LIST="$list" \
+            -f "$ANONAWK" "$f" >"$f.anon" 2>/dev/null && mv -f "$f.anon" "$f"; then
+            continue
+        fi
+        rm -f "$f.anon"
+        rc=1
+    done < <(find "$1" -type f -print0)
+    return $rc
+}
+
+# prepare download location
+rm -rf $PKGROOT 2>&1
+mkdir -p $PKGROOT 2>&1
+
+# prepare packaging location
+rm -rf $DEBUGROOT 2>&1
+mkdir -p $BOOT_LOGS 2>&1
+mkdir -p $DEBUGROOT 2>&1
+mkdir -p $DEBUGROOT/PLUGIN 2>&1
+
+# read and prepare configuration file
+[ -e "$CONFIG" ] && source "$CONFIG" 2>&1
+
+# copy relevant files to packaging location
+[ -f $CONFIG ] && cp -f $CONFIG $DEBUGROOT/PLUGIN/ca.mover.tuning.cfg.txt 2>&1
+
+[ -f $DEFAULT_CONFIG ] && cp -f $DEFAULT_CONFIG $DEBUGROOT/PLUGIN/default.cfg.txt 2>&1
+
+[ -f $CRON ] && cp -f $CRON $DEBUGROOT/PLUGIN/ca.mover.tuning.cron.txt 2>&1
+
+for file in $UNRAID_CRON; do
+    if [[ -f $file ]]; then
+        cp -f "$file" "${DEBUGROOT}/PLUGIN/unraid.${file##*/}.txt" 2>&1
+    fi
+done
+
+# get path from $SKIPFILESLIST and prepare packaging location
+if [ -n "$SKIPFILESLIST" ]; then
+    # get ignore paths from the skipfile list
+    skipfiles=$(echo "$SKIPFILESLIST" | tr ' ' '\n')
+    # save paths inside skipfiles path to variable
+    for skipfile in $skipfiles; do
+        if [ -f "$skipfile" ]; then
+            cat "$skipfile" >>$DEBUGROOT/PLUGIN/mover_ignore.txt 2>&1
+        else
+            echo "# Warning: Skip file not found: $skipfile" >>$DEBUGROOT/PLUGIN/mover_ignore.txt 2>&1
+        fi
+    done
+fi
+
+# copy all config files from "$OVERRIDE_CFGFOLDER"
+for config_file in "$OVERRIDE_CFGFOLDER"/*.cfg; do
+    if [ -f "$config_file" ]; then
+        mkdir -p $DEBUGROOT/PLUGIN/shareOverrideConfig 2>&1
+        cp -f "$config_file" $DEBUGROOT/PLUGIN/shareOverrideConfig/"$(basename "$config_file").txt" 2>&1
+    fi
+done
+
+# Newest logs up to $MAXLOGBYTES; this took only files modified today.
+if [ -d "$LOGFOLDER" ]; then
+    mkdir -p $DEBUGROOT/PLUGIN/Logs 2>&1
+    find "$LOGFOLDER" -maxdepth 1 -type f -printf '%T@\t%s\t%p\0' 2>/dev/null |
+        sort -zrn |
+        gawk -v RS='\0' -v ORS='\0' -v budget="$MAXLOGBYTES" '
+            {
+                # index, not fields: a path may contain a tab
+                r = substr($0, index($0, "\t") + 1)
+                size = substr(r, 1, index(r, "\t") - 1)
+                total += size
+                if (total > budget) exit
+                print substr(r, index(r, "\t") + 1)
+            }' |
+        while IFS= read -r -d '' file; do
+            cp -f "$file" $DEBUGROOT/PLUGIN/Logs/"$(basename "$file").txt" 2>&1
+        done
+fi
+
+# size and used+avail differ on btrfs, and the thresholds are derived from them,
+# so record both rather than a single percentage.
+{
+    for pool in $POOLNAMES; do
+        [ -d "/mnt/$pool" ] || continue
+        echo "### /mnt/$pool"
+        stat -f -c 'fstype=%T' "/mnt/$pool" 2>&1
+        df --output=size,used,avail,pcent --block-size=1 "/mnt/$pool" 2>&1
+        zfs list -Hpo name,available,used "$pool" 2>/dev/null
+        echo
+    done
+} >$DEBUGROOT/PLUGIN/pools.txt 2>&1
+
+# Who holds the mover now. A pid file left by the stock mover, or one whose pid is
+# dead, explains both "already running" and a run that overlapped the stock mover.
+mover_state() {
+    echo "### $PIDFILE"
+    if [ -f "$PIDFILE" ]; then
+        local pid
+        pid=$(tr -cd '0-9' <"$PIDFILE")
+        if [ -n "$pid" ] && [ -r "/proc/$pid/cmdline" ]; then
+            printf 'pid=%s etime=%s cmdline=' "$pid" "$(ps -o etime= -p "$pid" | tr -d ' ')"
+            tr '\0' ' ' <"/proc/$pid/cmdline"
+            echo
+            # same test the mover itself uses to refuse a second run (age_mover, share_mover)
+            ps h "$pid" | grep -q mover || echo "pid=$pid is not a mover (reused pid, so the pid file is stale)"
+        else
+            echo "pid=${pid:-?} not running (stale pid file)"
+        fi
+    else
+        echo "absent"
+    fi
+    [ -e "$SOFTSTOPFILE" ] && echo "### $SOFTSTOPFILE present"
+    echo "### mover processes"
+    pgrep -af 'age_mover|share_mover|sbin/mover|unraid/move' || echo "none"
+    echo "### emhttpd"
+    grep -E '^shareMover(Active|Schedule)=' /var/local/emhttp/var.ini
+}
+mover_state >$DEBUGROOT/PLUGIN/mover_state.txt 2>&1
+
+# include unraid version in package
+[ -f /etc/unraid-version ] && cp -f /etc/unraid-version $DEBUGROOT/unraid-version.txt 2>&1
+
+# include plugin definition files in package
+cp -f /boot/config/plugins/ca.mover.tuning.plg $DEBUGROOT/PLUGIN/ca.mover.tuning.plg.txt 2>&1
+
+# before the diagnostics land - that zip is already anonymized by Unraid
+if ! anonymize_tree $DEBUGROOT/PLUGIN; then
+    rm -rf $DEBUGROOT $PKGROOT 2>&1
+    echo "ERROR: could not anonymize the plugin logs, no debug package was written."
+    exit 1
+fi
+rm -f "$ANONAWK"
+
+# generate and include diagnostics package
+DIAGFILE="$(/usr/local/sbin/diagnostics 2>/dev/null | grep -o "${BOOT_LOGS}.*\.zip")"
+[ -f "$DIAGFILE" ] && mv -f "$DIAGFILE" $DEBUGROOT/ 2>&1
+
+# package up the prepared files in our packaging location
+(cd $DEBUGROOT && zip -r "${PKGROOT}/${DEBUGNAME}" . 2>&1)
+
+# clean up packaging location
+rm -rf $DEBUGROOT 2>&1
+
+# Copy package to /boot/logs/
+[ -f "${PKGROOT}/${DEBUGNAME}" ] && cp -a "${PKGROOT}/${DEBUGNAME}" "$BOOT_LOGS" 2>&1
+
+# return with the name of the debug package
+[ -f "${PKGROOT}/${DEBUGNAME}" ] && echo "DONE:${PKGROOT}/${DEBUGNAME}" 2>&1
